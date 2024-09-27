@@ -1,0 +1,59 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+#define HIGH_PRIORITY_EXECUTION 1
+#define LOW_PRIORITY_EXECUTION 5
+
+pthread_mutex_t mutex;
+
+// Function for the high-priority task
+void* high_priority_task(void* arg) {
+    while (1) {
+        pthread_mutex_lock(&mutex);  // High-priority task locks the CPU
+        printf("High-priority process is running.\n");
+        pthread_mutex_unlock(&mutex);  // Unlocks after finishing work
+        sleep(HIGH_PRIORITY_EXECUTION);  // Short sleep time, runs often
+    }
+    pthread_exit(NULL);
+}
+
+// Function for the low-priority task
+void* low_priority_task(void* arg) {
+    while (1) {
+        if (pthread_mutex_trylock(&mutex) == 0) {
+            // Low-priority task gets the CPU if it's not locked
+            printf("Low-priority process is running.\n");
+            pthread_mutex_unlock(&mutex);
+            sleep(LOW_PRIORITY_EXECUTION);  // Longer wait before running again
+        } else {
+            // Can't get CPU, so it's "starved"
+            printf("Low-priority process is waiting (starved).\n");
+            sleep(1);  // Simulates waiting
+        }
+    }
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t high_priority_thread, low_priority_thread;
+
+    // Initialize the mutex
+    pthread_mutex_init(&mutex, NULL);
+
+    // Create the high-priority thread
+    pthread_create(&high_priority_thread, NULL, high_priority_task, NULL);
+
+    // Create the low-priority thread
+    pthread_create(&low_priority_thread, NULL, low_priority_task, NULL);
+
+    // Let the threads run indefinitely
+    pthread_join(high_priority_thread, NULL);
+    pthread_join(low_priority_thread, NULL);
+
+    // Destroy the mutex
+    pthread_mutex_destroy(&mutex);
+
+    return 0;
+}
